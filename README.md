@@ -75,3 +75,8 @@ const int SERIAL_CONFIG = SERIAL_8N1;
   }
 }
 ```
+## Related Projects
+
+For alternative implementations and community-driven approaches to Sungrow meter communication, you might want to explore:
+
+- [Sungrow-Meter-cheater](https://github.com/Linux-RISC/Sungrow-Meter-cheater)
