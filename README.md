@@ -24,7 +24,6 @@ An ESP32-based DTSU666 smart meter emulator with automatic RS485 direction contr
 | 3.3V          | VCC           |
 | GND           | GND           |
 
-![ESP32 XY-017 Wiring](https://i.imgur.com/esp32_xy017.png)
 
 ## Libraries Used
 - **ModbusRTU** by [emelianov]
@@ -41,3 +40,37 @@ const int TX_PIN = 17;  // UART2 TX (GPIO17)
 // Modbus Serial Configuration
 const long modbusBaud = 9600;
 const int SERIAL_CONFIG = SERIAL_8N1;
+
+## Installation
+1. Clone this repository
+2. Install required libraries through Arduino Library Manager
+3. Configure `settings.h` with your network and MQTT credentials
+4. Upload to ESP8266
+5. Connect RS485 module to TTL pins (default: GPIO16-RX, GPIO17-TX)
+
+## Usage
+1. Power up the device
+2. Monitor serial port (115200 baud) for initialization status
+3. Verify MQTT connection in your broker logs
+4. Test Modbus communication using any Modbus RTU client
+
+**MQTT Topics:**
+- `smartmeter/data` - Meter data in JSON format
+- `smartmeter/status` - Device status (online/offline)
+
+**Sample JSON Payload:**
+```json
+{
+  "SML": {
+    "total_kwh": 1234.56,
+    "export_total_kwh": 789.01,
+    "Power_curr": 1500,
+    "volt_p1": 230.0,
+    "volt_p2": 231.5,
+    "volt_p3": 229.8,
+    "freq": 50.0,
+    "Power_A": 500,
+    "Power_B": 600,
+    "Power_C": 400
+  }
+}
