@@ -19,8 +19,8 @@ An ESP32-based DTSU666 smart meter emulator with automatic RS485 direction contr
 ## Wiring (ESP32 + XY-017)
 | ESP32         | XY-017 Module |
 |---------------|---------------|
-| GPIO17 (TX2)  | DI            |
-| GPIO16 (RX2)  | RO            |
+| GPIO17 (TX2)  | TXD            |
+| GPIO16 (RX2)  | RXD            |
 | 3.3V          | VCC           |
 | GND           | GND           |
 
@@ -40,7 +40,7 @@ const int TX_PIN = 17;  // UART2 TX (GPIO17)
 // Modbus Serial Configuration
 const long modbusBaud = 9600;
 const int SERIAL_CONFIG = SERIAL_8N1;
-
+```
 ## Installation
 1. Clone this repository
 2. Install required libraries through Arduino Library Manager
@@ -74,3 +74,4 @@ const int SERIAL_CONFIG = SERIAL_8N1;
     "Power_C": 400
   }
 }
+```
