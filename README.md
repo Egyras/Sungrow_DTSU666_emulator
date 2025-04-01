@@ -1,4 +1,4 @@
-# Sungrow Smart Meter Modbus Emulator (DTSU666) - ESP32 Version - Not yet tested with real Sungrow Inverter :)
+# Sungrow Smart Meter Modbus Emulator (DTSU666) - ESP32 Version - seems it works, just need more testing :)
 
 **RS485 Emulator using XY-017 Auto Flow Control Module or similar**
 
