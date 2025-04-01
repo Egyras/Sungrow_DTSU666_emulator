@@ -46,7 +46,7 @@ const int SERIAL_CONFIG = SERIAL_8N1;
 1. Clone this repository
 2. Install required libraries through Arduino Library Manager
 3. Configure `settings.h` with your network and MQTT credentials
-4. Upload to ESP8266
+4. Upload to ESP32
 5. Connect RS485 module to TTL pins (default: GPIO16-RX, GPIO17-TX)
 
 ## Usage
