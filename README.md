@@ -8,6 +8,7 @@ An ESP32-based DTSU666 smart meter emulator with automatic RS485 direction contr
 - ESP32-optimized Modbus RTU implementation
 - Automatic TX/RX switching with XY-017 module
 - MQTT integration
+- OTA update option
 
 
 ## Hardware Requirements
@@ -62,13 +63,13 @@ const int SERIAL_CONFIG = SERIAL_8N1;
 ```json
 {
   "SML": {
-    "total_kwh": 1234.56,
-    "export_total_kwh": 789.01,
+    "total_kwh": 1234,
+    "export_total_kwh": 789,
     "Power_curr": 1500,
-    "volt_p1": 230.0,
-    "volt_p2": 231.5,
-    "volt_p3": 229.8,
-    "freq": 50.0,
+    "volt_p1": 230,
+    "volt_p2": 231,
+    "volt_p3": 229,
+    "freq": 50,
     "Power_A": 500,
     "Power_B": 600,
     "Power_C": 400

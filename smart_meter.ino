@@ -3,6 +3,9 @@
 #include <PubSubClient.h>
 #include <ModbusRTU.h>
 #include <ArduinoJson.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 #include "settings.h"  // Configuration header
 
 // ===================== Global Objects =====================
@@ -12,13 +15,13 @@ ModbusRTU modbus;
 
 // ===================== State Management =====================
 struct MeterData {
-  float total_kwh = 0.0f;        // Total imported energy in kWh
-  float export_kwh = 0.0f;       // Total exported energy in kWh
+  int32_t total_kwh = 0;         // Total imported energy in kWh 
+  int32_t export_kwh = 0;        // Total exported energy in kWh
   int32_t total_power = 0;       // Current total power consumption in W
-  float v1 = 230.0f;             // Voltage of Phase A in V
-  float v2 = 230.0f;             // Voltage of Phase B in V
-  float v3 = 230.0f;             // Voltage of Phase C in V
-  float freq = 50.0f;            // Grid frequency in Hz
+  int16_t v1 = 230;              // Voltage of Phase A in V
+  int16_t v2 = 230;              // Voltage of Phase B in V
+  int16_t v3 = 230;              // Voltage of Phase C in V
+  int16_t freq = 50;             // Grid frequency in Hz
   int32_t power_a = 0;           // Active power of Phase A in W
   int32_t power_b = 0;           // Active power of Phase B in W
   int32_t power_c = 0;           // Active power of Phase C in W
@@ -63,27 +66,30 @@ void updateModbusRegisters() {
 
   modbus.Hreg(CONFIG_REG, 0);
 
+  
   addRegisterIfNeeded(VOLTAGE_A);
-  modbus.Hreg(VOLTAGE_A, static_cast<uint16_t>(meterData.v1 * 10));
+  modbus.Hreg(VOLTAGE_A, static_cast<uint16_t>(meterData.v1));
   
   addRegisterIfNeeded(VOLTAGE_B);
-  modbus.Hreg(VOLTAGE_B, static_cast<uint16_t>(meterData.v2 * 10));
+  modbus.Hreg(VOLTAGE_B, static_cast<uint16_t>(meterData.v2));
   
   addRegisterIfNeeded(VOLTAGE_C);
-  modbus.Hreg(VOLTAGE_C, static_cast<uint16_t>(meterData.v3 * 10));
+  modbus.Hreg(VOLTAGE_C, static_cast<uint16_t>(meterData.v3));
 
   addRegisterIfNeeded(FREQUENCY_REG);
-  modbus.Hreg(FREQUENCY_REG, static_cast<uint16_t>(meterData.freq * 10));
+  modbus.Hreg(FREQUENCY_REG, static_cast<uint16_t>(meterData.freq));
 
+  // total_kwh
   addRegisterIfNeeded(TOTAL_FORWARD_H);
   addRegisterIfNeeded(TOTAL_FORWARD_L);
-  uint32_t total_wh = static_cast<uint32_t>(meterData.total_kwh * 1000);
+  uint32_t total_wh = static_cast<uint32_t>(meterData.total_kwh * 100);
   modbus.Hreg(TOTAL_FORWARD_H, (total_wh >> 16) & 0xFFFF);
   modbus.Hreg(TOTAL_FORWARD_L, total_wh & 0xFFFF);
 
+  // export_kwh
   addRegisterIfNeeded(TOTAL_REVERSE_H);
   addRegisterIfNeeded(TOTAL_REVERSE_L);
-  uint32_t export_wh = static_cast<uint32_t>(meterData.export_kwh * 1000);
+  uint32_t export_wh = static_cast<uint32_t>(meterData.export_kwh * 100);
   modbus.Hreg(TOTAL_REVERSE_H, (export_wh >> 16) & 0xFFFF);
   modbus.Hreg(TOTAL_REVERSE_L, export_wh & 0xFFFF);
 
@@ -123,6 +129,53 @@ void setupWiFi() {
     }
   }
   if(enableSerialLogs) Serial.printf("\n[WiFi] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+}
+
+void setupOTA() {
+  if (!enableOTA) return;
+  
+  // Port defaults to 3232
+  ArduinoOTA.setPort(otaPort);
+  
+  // Hostname defaults to esp3232-[MAC]
+  ArduinoOTA.setHostname(otaHostname);
+  
+  // No authentication by default
+  ArduinoOTA.setPassword(otaPassword);
+  
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_SPIFFS
+      type = "filesystem";
+    }
+    
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    if(enableSerialLogs) Serial.println("[OTA] Start updating " + type);
+  });
+  
+  ArduinoOTA.onEnd([]() {
+    if(enableSerialLogs) Serial.println("\n[OTA] Update complete");
+  });
+  
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    if(enableSerialLogs) Serial.printf("[OTA] Progress: %u%%\r", (progress / (total / 100)));
+  });
+  
+  ArduinoOTA.onError([](ota_error_t error) {
+    if(enableSerialLogs) {
+      Serial.printf("[OTA] Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    }
+  });
+  
+  ArduinoOTA.begin();
+  if(enableSerialLogs) Serial.println("[OTA] OTA service initialized");
 }
 
 bool connectMQTT() {
@@ -175,14 +228,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       updated = true; \
       if(enableSerialLogs) { \
         Serial.printf("- %s: ", #field); \
-        if (strcmp(#field, "total_kwh") == 0 || strcmp(#field, "export_total_kwh") == 0) \
-          Serial.printf("%.3f\n", meterData.var); \
-        else if (strcmp(#field, "freq") == 0) \
-          Serial.printf("%.2f Hz\n", meterData.var); \
-        else if (strcmp(#field, "volt_p1") == 0 || strcmp(#field, "volt_p2") == 0 || strcmp(#field, "volt_p3") == 0) \
-          Serial.printf("%.1f V\n", meterData.var); \
-        else \
-          Serial.printf("%d\n", meterData.var); \
+        Serial.printf("%d\n", meterData.var); \
       } \
     }
 
@@ -220,6 +266,11 @@ void setup() {
   }
   
   setupWiFi();
+  
+  if (enableOTA && WiFi.status() == WL_CONNECTED) {
+    setupOTA();
+  }
+  
   mqttClient.setServer(mqttBroker, mqttPort);
   mqttClient.setCallback(mqttCallback);
 }
@@ -228,6 +279,11 @@ void loop() {
   static unsigned long lastReconnectAttempt = 0;
   static unsigned long lastReport = 0;
   static unsigned long lastModbusUpdate = 0;
+
+  // Handle OTA updates
+  if (enableOTA) {
+    ArduinoOTA.handle();
+  }
 
   // Handle Modbus with priority
   if(modbusInitialized) {
@@ -251,11 +307,18 @@ void loop() {
     if(modbusInitialized) {
       Serial.println("[SYSTEM] Modbus operational");
     } else {
-      Serial.printf("[SYSTEM] Waiting for data: %d/9 fields received\n", 
+      Serial.printf("[SYSTEM] Waiting for data: %d/10 fields received\n", 
         (meterData.total_kwh_rx + meterData.export_kwh_rx + meterData.total_power_rx +
          meterData.v1_rx + meterData.v2_rx + meterData.v3_rx + meterData.freq_rx +
          meterData.power_a_rx + meterData.power_b_rx + meterData.power_c_rx));
     }
+    
+    // Report OTA status
+    if (enableOTA) {
+      Serial.printf("[SYSTEM] OTA update service active on %s.local:%d\n", 
+                   otaHostname, otaPort);
+    }
+    
     lastReport = millis();
   }
 
